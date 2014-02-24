@@ -1,4 +1,4 @@
-type GlmResp{V<:FPStoredVector} <: ModResp   # response in a glm model
+type GlmResp{V<:FPStoredVector} <: ModResp     # response in a glm model
     y::V                                       # response
     d::UnivariateDistribution
     l::Link
@@ -100,15 +100,16 @@ function fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30, minStepFac::Re
     0 < minStepFac < 1 || error("minStepFac must be in (0, 1)")
 
     cvg = false; p = m.pp; r = m.rr
-    scratch = similar(p.X)
-    devold = updatemu!(r, linpred(delbeta!(p, wrkresp(r), wrkwt(r), scratch)))
+    scratch_delbeta = similar(p.X)
+    scratch_linpred = linpred(delbeta!(p, wrkresp(r), wrkwt!(r), scratch_delbeta))
+    devold = updatemu!(r, scratch_linpred)
     installbeta!(p)
     for i=1:maxIter
         f = 1.0
-        dev = updatemu!(r, linpred(delbeta!(p, r.wrkresid, wrkwt(r), scratch)))
+        dev = updatemu!(r, linpred!(scratch_linpred, delbeta!(p, r.wrkresid, wrkwt!(r), scratch_delbeta)))
         while dev > devold
-            f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $beta0")
-            dev = updatemu!(r, linpred(p, f))
+            f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
+            dev = updatemu!(r, linpred!(scratch_linpred, p, f))
         end
         installbeta!(p, f)
         crit = (devold - dev)/dev
