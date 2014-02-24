@@ -1,7 +1,14 @@
 
                   
 ## Return the linear predictor vector
-linpred(p::LinPred, f::Real=1.) = p.X * (f == 0. ? p.beta0 : fma(p.beta0, p.delbeta, f))
+linpred(p::LinPred, f::Real=1.) = p.X * (f == 0. ? p.beta0 :
+                                         f == 1. ? map!(Add(), p.scratch, p.beta0, p.delbeta) :
+                                         map!(FMA(), p.scratch, p.beta0, p.delbeta, f))
+linpred!(r::Vector, p::LinPred, f::Real=1.) =
+    A_mul_B!(r, p.X, (f == 0. ? p.beta0 :
+                      f == 1. ? map!(Add(), p.scratch, p.beta0, p.delbeta) :
+                      map!(FMA(), p.scratch, p.beta0, p.delbeta, f)))
+
 
 ## Install beta0 + f*delbeta as beta0 and zero out delbeta
 function installbeta!(p::LinPred, f::Real=1.)
@@ -16,10 +23,11 @@ type DensePredQR{T<:BlasReal} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
+    scratch::Vector{T}             # scratch for linpred
     qr::QRCompactWY{T}
     function DensePredQR(X::Matrix{T}, beta0::Vector{T})
         n,p = size(X); length(beta0) == p || error("dimension mismatch")
-        new(X, beta0, zeros(T,p), qrfact(X))
+        new(X, beta0, zeros(T,p), similar(beta0), qrfact(X))
     end
 end
 DensePredQR{T<:BlasReal}(X::Matrix{T}) = DensePredQR{T}(X, zeros(T,size(X,2)))
@@ -32,10 +40,11 @@ type DensePredChol{T<:BlasReal} <: DensePred
     X::Matrix{T}                   # model matrix
     beta0::Vector{T}               # base vector for coefficients
     delbeta::Vector{T}             # coefficient increment
+    scratch::Vector{T}             # scratch for linpred
     chol::Cholesky{T}
     function DensePredChol(X::Matrix{T}, beta0::Vector{T})
         n,p = size(X); length(beta0) == p || error("dimension mismatch")
-        new(X, beta0, zeros(T,p), cholfact(X'X))
+        new(X, beta0, zeros(T,p), similar(beta0), cholfact(X'X))
     end
 end
 DensePredChol{T<:BlasReal}(X::Matrix{T}) = DensePredChol{T}(X, zeros(T,size(X,2)))

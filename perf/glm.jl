@@ -8,10 +8,15 @@ df2 = DataFrame(x1 = rand(Normal(), n),
 beta = unshift!(rand(Normal(),52), 0.5); # "true" parameter values
 
 ## Create linear predictor and mean response
-df2["eta"] = eta = ModelMatrix(ModelFrame(x1 ~ x1 + x2 + ss, df2)).m * beta;
-df2["mu"] = mu = linkinv!(LogitLink(), similar(eta), eta); 
+df2[:eta] = eta = ModelMatrix(ModelFrame(x1 ~ x1 + x2 + ss, df2)).m * beta;
+df2[:mu] = mu = linkinv!(LogitLink(), similar(eta), eta); 
 
-df2["y"] = float64(rand(n) .< mu);        # simulate observed responses
+df2[:y] = float64(rand(n) .< mu);        # simulate observed responses
+
+mm = ModelFrame(y ~ x1 + x2 + ss, df2); X = ModelMatrix(mm).m; y = model_response(mm);
+@time gm6 = glm(X, y, Binomial())
+@profile gm6 = glm(X, y, Binomial())
+
 head(df2)
 
 gm6 = glm(y ~ x1 + x2 + ss, df2, Binomial())
