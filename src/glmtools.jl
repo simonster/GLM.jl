@@ -98,10 +98,6 @@ type PoissonDevResid <: Functor{3} end
 evaluate{T<:FP}(::PoissonDevResid,y::T,mu::T,wt::T) = 2.wt * (xlogy(y,y/mu) - (y - mu))
 result_type{T<:FP}(::PoissonDevResid,::Type{T},::Type{T},::Type{T}) = T
 
-type GammaDevResid <: Functor{3} end
-evaluate{T<:FP}(::GammaDevResid,y::T,mu::T,wt::T) = -2.wt * (log(y/mu) - (y - mu)/mu)
-result_type{T<:FP}(::GammaDevResid,::Type{T},::Type{T},::Type{T}) = T
-
 function devresid!{T<:FP}(::Binomial,dr::Vector{T},y::Vector{T},
                                      mu::Vector{T},wt::Vector{T})
     map!(BinomialDevResid(), dr, y, mu, wt)
@@ -112,5 +108,13 @@ function devresid!{T<:FP}(::Poisson,dr::Vector{T},y::Vector{T},
 end
 function devresid!{T<:FP}(::Gamma,dr::Vector{T},y::Vector{T},
                                   mu::Vector{T},wt::Vector{T})
-    map!(GammaDevResid(), dr, y, mu, wt)
+    for i = 1:length(dr)
+        @inbounds begin
+            cy = y[i]
+            cmu = mu[i]
+            cwt = wt[i]
+            #println("y = $cy, mu = $cmu")
+            dr[i] = -2.cwt * (log(cy/cmu) - (cy - cmu)/cmu)
+        end
+    end
 end

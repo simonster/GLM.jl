@@ -107,22 +107,40 @@ confint(obj::GlmMod) = confint(obj, 0.95)
         
 deviance(m::GlmMod)  = deviance(m.rr)
 
-function fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6)
+function fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing)
     m.fit && return m
     maxIter >= 1 || error("maxIter must be positive")
     0 < minStepFac < 1 || error("minStepFac must be in (0, 1)")
 
     cvg = false; p = m.pp; r = m.rr
     scratch_delbeta = similar(p.X)
-    scratch_linpred = linpred(delbeta!(p, wrkresp(r), wrkwt!(r), scratch_delbeta))
+    scratch_linpred = similar(r.y)
+    if start == nothing
+        linpred!(scratch_linpred, delbeta!(p, wrkresp(r), wrkwt!(r), scratch_delbeta))
+    else
+        copy!(p.beta0, start)
+        fill!(p.delbeta, zero(eltype(p.delbeta)))
+        linpred!(scratch_linpred, p)
+    end
     devold = updatemu!(r, scratch_linpred)
     installbeta!(p)
     for i=1:maxIter
         f = 1.0
-        dev = updatemu!(r, linpred!(scratch_linpred, delbeta!(p, r.wrkresid, wrkwt!(r), scratch_delbeta)))
+        local dev
+        try
+            dev = updatemu!(r, linpred!(scratch_linpred, delbeta!(p, r.wrkresid, wrkwt!(r), scratch_delbeta)))
+        catch e
+            isa(e, DomainError) || rethrow(e)
+            dev = Inf
+        end
         while dev > devold
             f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
-            dev = updatemu!(r, linpred!(scratch_linpred, p, f))
+            try
+                dev = updatemu!(r, linpred!(scratch_linpred, p, f))
+            catch e
+                isa(e, DomainError) || rethrow(e)
+                dev = Inf
+            end
         end
         installbeta!(p, f)
         crit = (devold - dev)/dev
@@ -138,7 +156,7 @@ end
 function fit(m::GlmMod, y; wts=nothing, offset=nothing, args...)
     r = m.rr
     V = typeof(r.y)
-    r.y = isa(y, V) ? copy(y) : convert(V, y)
+    copy!(r.y, y)
     wts == nothing || (r.wts = isa(wts, V) ? copy(wts) : convert(V, wts))
     offset == nothing || (r.offset = isa(offset, V) ? copy(offset) : convert(V, offset))
     r.mu = mustart(r.d, r.y, r.wts)
