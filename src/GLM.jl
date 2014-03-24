@@ -33,6 +33,7 @@ module GLM
         LmMod,
         LmResp,
         ProbitLink,
+        SqrtLink,
                                         # functions
         canonicallink,  # canonical link function for a distribution
         contr_treatment,# treatment contrasts

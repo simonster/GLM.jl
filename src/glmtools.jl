@@ -12,6 +12,7 @@ type InverseLink  <: Link end
 type LogitLink <: Link end
 type LogLink <: Link end
 type ProbitLink <: Link end
+type SqrtLink <: Link end
 
 type CauchLink <: Functor{1} end
 evaluate{T<:FP}(::CauchLink,x::T) = tan(pi*(x - convert(T,0.5)))
@@ -35,6 +36,8 @@ type ProbInv <: Functor{1} end
 evaluate{T<:FP}(::ProbInv,x::T) = (one(T) + erf(x/sqrt2))/convert(T,2.0)
 type ProbME <: Functor{1} end
 evaluate{T<:FP}(::ProbME,x::T) = exp(-x*x/convert(T,2.0))/sqrt2pi
+type SqrtME <: Functor{1} end
+evaluate{T<:FP}(::SqrtME,x::T) = 2*x
 
                                         # IdentityLink is a special case - nothing to map
 linkfun!{T<:FP}(::IdentityLink, eta::Vector{T}, mu::Vector{T}) = copy!(eta,mu)
@@ -47,7 +50,8 @@ for (l, lf, li, mueta) in
      (:InverseLink, :RcpFun, :RcpFun, :InvME),
      (:LogitLink, :LogitFun, :LogisticFun, :LogitME),
      (:LogLink, :LogFun, :ExpFun, :ExpFun),
-     (:ProbitLink, :ProbLink, :ProbInv, :ProbME))
+     (:ProbitLink, :ProbLink, :ProbInv, :ProbME),
+     (:SqrtLink, :SqrtFun, :Abs2Fun, :SqrtME))
     @eval begin
         linkfun!{T<:FP}(::$l,eta::Vector{T},mu::Vector{T}) = map!($lf(),eta,mu)
         linkinv!{T<:FP}(::$l,mu::Vector{T},eta::Vector{T}) = map!($li(),mu,eta)
