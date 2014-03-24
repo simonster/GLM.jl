@@ -39,6 +39,9 @@ evaluate{T<:FP}(::ProbME,x::T) = exp(-x*x/convert(T,2.0))/sqrt2pi
 type SqrtME <: Functor{1} end
 evaluate{T<:FP}(::SqrtME,x::T) = 2*x
 
+type LogisticFun <: Functor{1} end
+evaluate{T<:FP}(::LogisticFun,x::T) = one(x) / (one(x) + exp(-x))
+
                                         # IdentityLink is a special case - nothing to map
 linkfun!{T<:FP}(::IdentityLink, eta::Vector{T}, mu::Vector{T}) = copy!(eta,mu)
 linkinv!{T<:FP}(::IdentityLink, mu::Vector{T}, eta::Vector{T}) = copy!(mu,eta)
@@ -79,7 +82,7 @@ result_type{T<:FP}(::BinomialMuStart,::Type{T},::Type{T}) = T
 mustart{T<:FP}(::Binomial,y::Vector{T},wt::Vector{T}) = map(BinomialMuStart(),y,wt)
 mustart{T<:FP}(::Gamma,y::Vector{T},::Vector{T}) = copy(y)
 mustart{T<:FP}(::Normal,y::Vector{T},::Vector{T}) = copy(y)
-mustart{T<:FP}(::Poisson,y::Vector{T},::Vector{T}) = y + convert(T,0.1)
+mustart{T<:FP}(::Poisson,y::Vector{T},::Vector{T}) = y .+ convert(T,0.1)
 
 for Op in [:BernoulliVar,
            :CauchLink, :CauchInv, :CauchME,
